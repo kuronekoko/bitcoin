@@ -126,7 +126,7 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(), pblock->nBits, Params().GetConsensus())) {
             ++pblock->nNonce;
             --nMaxTries;
         }
@@ -436,10 +436,10 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
     if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Bitcoin is not connected!");
+        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Dongri is not connected!");
 
     if (IsInitialBlockDownload())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Bitcoin is downloading blocks...");
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Dongri is downloading blocks...");
 
     static unsigned int nTransactionsUpdatedLast;
 

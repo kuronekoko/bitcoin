@@ -80,11 +80,11 @@ TESTS =
 BENCHMARKS =
 
 if BUILD_BITCOIND
-  bin_PROGRAMS += bitcoind
+  bin_PROGRAMS += dongrid
 endif
 
 if BUILD_BITCOIN_UTILS
-  bin_PROGRAMS += bitcoin-cli bitcoin-tx
+  bin_PROGRAMS += dongri-cli dongri-tx
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -211,7 +211,7 @@ obj/build.h: FORCE
 	  "$(abs_top_srcdir)"
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between bitcoind and bitcoin-qt
+# server: shared between dongrid and dongri-qt
 libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
@@ -269,7 +269,7 @@ libbitcoin_zmq_a_SOURCES = \
 endif
 
 
-# wallet: shared between bitcoind and bitcoin-qt, but only linked
+# wallet: shared between dongrid and dongri-qt, but only linked
 # when wallet enabled
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -367,9 +367,28 @@ libbitcoin_consensus_a_SOURCES = \
   uint256.h \
   utilstrencodings.cpp \
   utilstrencodings.h \
-  version.h
+  version.h \
+  crypto/Lyra2RE/Lyra2RE.c \
+  crypto/Lyra2RE/Lyra2RE.h \
+  crypto/Lyra2RE/Lyra2.c \
+  crypto/Lyra2RE/Lyra2.h \
+  crypto/Lyra2RE/Sponge.c \
+  crypto/Lyra2RE/Sponge.h \
+  crypto/Lyra2RE/blake.c \
+  crypto/Lyra2RE/sph_blake.h \
+  crypto/Lyra2RE/groestl.c \
+  crypto/Lyra2RE/sph_groestl.h \
+  crypto/Lyra2RE/keccak.c \
+  crypto/Lyra2RE/sph_keccak.h \
+  crypto/Lyra2RE/skein.c \
+  crypto/Lyra2RE/sph_skein.h \
+  crypto/Lyra2RE/cubehash.c \
+  crypto/Lyra2RE/sph_cubehash.h \
+  crypto/Lyra2RE/bmw.c \
+  crypto/Lyra2RE/sph_bmw.h \
+  crypto/Lyra2RE/sph_types.h
 
-# common: shared between bitcoind, and bitcoin-qt and non-server tools
+# common: shared between dongrid, and bitcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
@@ -427,7 +446,7 @@ libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
-# cli: shared between bitcoin-cli and bitcoin-qt
+# cli: shared between dongri-cli and dongri-qt
 libbitcoin_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_cli_a_SOURCES = \
@@ -437,17 +456,17 @@ libbitcoin_cli_a_SOURCES = \
 nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
-# bitcoind binary #
-bitcoind_SOURCES = bitcoind.cpp
-bitcoind_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoind_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# dongrid binary #
+dongrid_SOURCES = bitcoind.cpp
+dongrid_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+dongrid_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dongrid_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-bitcoind_SOURCES += bitcoind-res.rc
+dongrid_SOURCES += dongrid-res.rc
 endif
 
-bitcoind_LDADD = \
+dongrid_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_COMMON) \
@@ -461,38 +480,38 @@ bitcoind_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+dongrid_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # bitcoin-cli binary #
-bitcoin_cli_SOURCES = bitcoin-cli.cpp
-bitcoin_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
-bitcoin_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+dongri_cli_SOURCES = bitcoin-cli.cpp
+dongri_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+dongri_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dongri_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-bitcoin_cli_SOURCES += bitcoin-cli-res.rc
+dongri_cli_SOURCES += bitcoin-cli-res.rc
 endif
 
-bitcoin_cli_LDADD = \
+dongri_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-bitcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+dongri_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
-bitcoin_tx_SOURCES = bitcoin-tx.cpp
-bitcoin_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+dongri_tx_SOURCES = bitcoin-tx.cpp
+dongri_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+dongri_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dongri_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-bitcoin_tx_SOURCES += bitcoin-tx-res.rc
+dongri_tx_SOURCES += bitcoin-tx-res.rc
 endif
 
-bitcoin_tx_LDADD = \
+dongri_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
@@ -500,7 +519,7 @@ bitcoin_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-bitcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+dongri_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
 # bitcoinconsensus library #

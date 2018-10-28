@@ -54,6 +54,31 @@
 #define MICRO 0.000001
 #define MILLI 0.001
 
+static const CAmount PREMINE_COIN = 262800000;
+
+//static const int MAX_STAGES = 10;
+//static const int STAGES = 7;
+
+//struct SubsidyTableElement {
+//	int height;
+//	float coins;
+//};
+//static struct SubsidyTableElement blockRewardTable[] = {
+//		{20, 13140000},
+//		{1051200, 500},
+//		{1051200*2, 500/2f},
+//		{1051200*3, 500/4f},
+//		{1051200*4, 500/8f},
+//		{1051200*5, 500/16f},
+//		{1051200*6, 500/32f},
+//		{1051200*7, 500/64f},
+//		{1051200*8, 500/128f},
+//		{1051200*9, 500/256f},
+//		{1051200*10, 500/512f},
+//		{1051200*11, 500/1024f},
+//		{1051200*12, 500/2048f},
+//};
+
 /**
  * Global state
  */
@@ -1091,7 +1116,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1161,7 +1186,21 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
+	if (nHeight <= 20) {
+		return PREMINE_COIN * COIN / 20;
+	}
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+    // Force block reward to zero when right shift is undefined.
+    if (halvings >= 64)
+        return 0;
+
+    CAmount nSubsidy = 500 * COIN;
+    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+    nSubsidy >>= halvings;
+    return nSubsidy;
+
+/*
+	int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
@@ -1170,6 +1209,15 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
     return nSubsidy;
+
+*/
+
+//	for (int i=0; i < STAGES; i++) {
+//		if (nHeight <= SubsidyStages[i]) {
+//			return SubsidyCoins[i] * COIN;
+//		}
+//	}
+//	return 0;
 }
 
 bool IsInitialBlockDownload()
@@ -3079,7 +3127,7 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     return true;
