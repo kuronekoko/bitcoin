@@ -154,7 +154,7 @@ class FrameworkInfo(object):
 class ApplicationBundleInfo(object):
     def __init__(self, path):
         self.path = path
-        appName = "Bitcoin-Qt"
+        appName = "Dongri-Qt"
         self.binaryPath = os.path.join(path, "Contents", "MacOS", appName)
         if not os.path.exists(self.binaryPath):
             raise RuntimeError("Could not find bundle binary for " + path)
@@ -259,6 +259,8 @@ def copyFramework(framework, path, verbose):
         fromPath = "/Library/Frameworks/" + framework.sourceFilePath
     else:
         fromPath = framework.sourceFilePath
+    if framework.sourceFilePath.startswith("@rpath"):
+        fromPath = "/Library/Frameworks/" + framework.sourceFilePath.replace("@rpath/", "")
     toDir = os.path.join(path, framework.destinationDirectory)
     toPath = os.path.join(toDir, framework.binaryName)
     
@@ -358,6 +360,8 @@ def deployFrameworks(frameworks, bundlePath, binaryPath, strip, verbose, deploym
             # Deploy framework if necessary.
             if dependency.frameworkName not in deploymentInfo.deployedFrameworks and dependency not in frameworks:
                 frameworks.append(dependency)
+
+    os.system("install_name_tool -change @loader_path/libboost_system-mt.dylib @executable_path/../Frameworks/libboost_system-mt.dylib "+ target +"/Contents/Frameworks/libboost_chrono-mt.dylib")
     
     return deploymentInfo
 
@@ -602,7 +606,7 @@ else:
 
 # ------------------------------------------------
 
-target = os.path.join("dist", "Bitcoin-Qt.app")
+target = os.path.join("dist", "Dongri-Qt.app")
 
 if verbose >= 2:
     print("+ Copying source bundle +")
@@ -640,6 +644,7 @@ if config.plugins:
     
     try:
         deployPlugins(applicationBundle, deploymentInfo, config.strip, verbose)
+        os.system("cp "+ target +"/Contents/Frameworks/libboost_chrono-mt.dylib "+ target +"/Contents/Frameworks/libboost_system-mt.dylib")
     except RuntimeError as e:
         if verbose >= 1:
             sys.stderr.write("Error: %s\n" % str(e))
