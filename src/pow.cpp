@@ -1,95 +1,99 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2012 Litecoin Developers
+// Copyright (c) 2013-2014 Dr Kimoto Chan
+// Copyright (c) 2009-2014 The DigiByte developers
+// Copyright (c) 2013-2014 Dongri Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pow.h"
 
 #include "arith_uint256.h"
+#include "bignum.h"
 #include "chain.h"
-#include "chainparams.h"
 #include "primitives/block.h"
 #include "uint256.h"
+#include "util.h"
+#include "version.h"
+#include "chainparams.h"
 
-unsigned int static LinearWeightedMovingAverage(const CBlockIndex* pindexLast, const Consensus::Params& params);
+#include <stdexcept>
+#include <vector>
+#include <openssl/bn.h>
+#include <cmath>
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock,
-                                 const Consensus::Params& params)
-{
-    assert(pindexLast != nullptr);
+unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
+    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dashpay.io */
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
+    int64_t nActualTimespan = 0;
+    int64_t LastBlockTime = 0;
+    int64_t PastBlocksMin = 36;
+    int64_t PastBlocksMax = 36;
+    int64_t CountBlocks = 0;
+    CBigNum PastDifficultyAverage;
+    CBigNum PastDifficultyAveragePrev;
 
-	// Zawy's LWMA.
-	return LwmaGetNextWorkRequired(pindexLast, pblock, params);
-}
-
-unsigned int LwmaGetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
-{
-    // Special difficulty rule for testnet:
-    // If the new block's timestamp is more than 2 * 10 minutes
-    // then allow mining of a min-difficulty block.
-    if (params.fPowAllowMinDifficultyBlocks &&
-        pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 2) {
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight < 0 + PastBlocksMin) {
         return UintToArith256(params.powLimit).GetCompact();
     }
-    return LinearWeightedMovingAverage(pindexLast, params);
+
+    for (unsigned int i = 1; BlockReading && BlockReading->nHeight >= 0; i++) {
+        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+        CountBlocks++;
+
+        if(CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks)+(CBigNum().SetCompact(BlockReading->nBits))) / (CountBlocks+1); }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
+        }
+
+        if(LastBlockTime > 0){
+            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            nActualTimespan += Diff;
+        }
+        LastBlockTime = BlockReading->GetBlockTime();
+
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = BlockReading->pprev;
+    }
+
+    CBigNum bnNew(PastDifficultyAverage);
+
+    int64_t _nTargetTimespan = CountBlocks*params.nPowTargetSpacing;
+
+    if (nActualTimespan < _nTargetTimespan/3)
+        nActualTimespan = _nTargetTimespan/3;
+    if (nActualTimespan > _nTargetTimespan*3)
+        nActualTimespan = _nTargetTimespan*3;
+
+    // Retarget
+    bnNew *= nActualTimespan;
+    bnNew /= _nTargetTimespan;
+
+    if (bnNew > CBigNum(params.powLimit)){
+        bnNew = CBigNum(params.powLimit);
+    }
+
+    return bnNew.GetCompact();
 }
 
-// refer to https://github.com/zawy12/difficulty-algorithms/issues/3#issuecomment-388386175
-// LWMA for BTC clones
-// Algorithm by zawy, LWMA idea by Tom Harding
-// Code by h4x3rotab of BTC Gold, modified/updated by zawy
-// https://github.com/zawy12/difficulty-algorithms/issues/3#issuecomment-388386175
-//  FTL must be changed to about N*T/20 = 360 for T=120 and N=60 coins.
-//  FTL is MAX_FUTURE_BLOCK_TIME in chain.h.
-//  FTL in Ignition, Numus, and others can be found in main.h as DRIFT.
-//  Some coins took out a variable, and need to change the 2*60*60 here:
-//  if (block.GetBlockTime() > nAdjustedTime + 2 * 60 * 60)
-unsigned int static LinearWeightedMovingAverage(const CBlockIndex* pindexLast, const Consensus::Params& params) {
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+{
+    assert(pindexLast != nullptr);
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
     // Genesis block
-    if (pindexLast == NULL) {
+    if (pindexLast == NULL)
         return nProofOfWorkLimit;
-    }
 
     if (params.fPowNoRetargeting) {
+		printf("GetNextWorkRequired noReTargeting\n");
         return pindexLast->nBits;
     }
 
-    if (pindexLast->nHeight <= 8) {
-    		return nProofOfWorkLimit;
-    }
-
-    const int FTL = MAX_FUTURE_BLOCK_TIME;
-    const int T = params.nPowTargetSpacing;
-    const int height = pindexLast->nHeight;
-    const int N = 8;
-    const int k = N*(N+1)*T/2;
-    assert(height > N);
-
-    arith_uint256 sum_target;
-    int t = 0, j = 0, solvetime;
-
-    // Loop through N most recent blocks.
-    for (int i = height - N+1; i <= height; i++) {
-        const CBlockIndex* block = pindexLast->GetAncestor(i);
-        const CBlockIndex* block_Prev = block->GetAncestor(i - 1);
-        solvetime = block->GetBlockTime() - block_Prev->GetBlockTime();
-        solvetime = std::max(-FTL, std::min(solvetime, 6*T));
-        j++;
-        t += solvetime * j;  // Weighted solvetime sum.
-        arith_uint256 target;
-        target.SetCompact(block->nBits);
-        sum_target += target / (k * N);
-    }
-
-    // Keep t reasonable to >= 1/10 of expected t.
-    if (t < k/10 ) {
-        t = k/10;
-    }
-    arith_uint256 next_target = t * sum_target;
-
-    return next_target.GetCompact();
+	return DarkGravityWave(pindexLast, pblock, params);
 }
 
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
@@ -97,19 +101,32 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     if (params.fPowNoRetargeting)
         return pindexLast->nBits;
 
+    int64_t targetTimespan =  params.nPowTargetTimespan;
+    targetTimespan = params.nPowTargetSpacing;
+
     // Limit adjustment step
     int64_t nActualTimespan = pindexLast->GetBlockTime() - nFirstBlockTime;
-    if (nActualTimespan < params.nPowTargetTimespan/4)
-        nActualTimespan = params.nPowTargetTimespan/4;
-    if (nActualTimespan > params.nPowTargetTimespan*4)
-        nActualTimespan = params.nPowTargetTimespan*4;
+
+    	//DigiShield implementation - thanks to RealSolid & WDC for this code
+	// amplitude filter - thanks to daft27 for this code
+	nActualTimespan = targetTimespan + (nActualTimespan - targetTimespan)/8;
+	if (nActualTimespan < (targetTimespan - (targetTimespan/4)) ) nActualTimespan = (targetTimespan - (targetTimespan/4));
+	if (nActualTimespan > (targetTimespan + (targetTimespan/2)) ) nActualTimespan = (targetTimespan + (targetTimespan/2));
 
     // Retarget
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     arith_uint256 bnNew;
+    arith_uint256 bnOld;
     bnNew.SetCompact(pindexLast->nBits);
+    bnOld = bnNew;
+    // Dongri: intermediate uint256 can overflow by 1 bit
+    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+    bool fShift = bnNew.bits() > bnPowLimit.bits() - 1;
+    if (fShift)
+        bnNew >>= 1;
     bnNew *= nActualTimespan;
-    bnNew /= params.nPowTargetTimespan;
+    bnNew /= targetTimespan;
+    if (fShift)
+        bnNew <<= 1;
 
     if (bnNew > bnPowLimit)
         bnNew = bnPowLimit;
