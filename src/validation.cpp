@@ -54,7 +54,7 @@
 #define MICRO 0.000001
 #define MILLI 0.001
 
-static const CAmount PREMINE_COIN = 262800000;
+static const CAmount PREMINE_COIN = 328500000;
 
 //static const int MAX_STAGES = 10;
 //static const int STAGES = 7;
@@ -1186,8 +1186,8 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-	if (nHeight <= 20) {
-		return PREMINE_COIN * COIN / 20;
+	if (nHeight <= 25) {
+		return PREMINE_COIN * COIN / 25;
 	}
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
