@@ -223,7 +223,7 @@ static UniValue getmininginfo(const JSONRPCRequest& request)
 }
 
 
-// NOTE: Unlike wallet RPC (which use BTC values), mining RPCs follow GBT (BIP 22) in using satoshi amounts
+// NOTE: Unlike wallet RPC (which use DGC values), mining RPCs follow GBT (BIP 22) in using satoshi amounts
 static UniValue prioritisetransaction(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 3)
@@ -435,11 +435,11 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     if(!g_connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
-    if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Dongri is not connected!");
-
-    if (IsInitialBlockDownload())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Dongri is downloading blocks...");
+//    if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
+//        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Dongri is not connected!");
+//
+//    if (IsInitialBlockDownload())
+//        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Dongri is downloading blocks...");
 
     static unsigned int nTransactionsUpdatedLast;
 
